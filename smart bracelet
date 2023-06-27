@@ -1,0 +1,89 @@
+// code for smat bracelet to make a secure payment using new technology //
+
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <SoftwareSerial.h>
+#include <MFRC522.h>
+
+// OLED display setup
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 32
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// RFID setup
+#define SS_PIN 10
+#define RST_PIN 9
+MFRC522 mfrc522(SS_PIN, RST_PIN);
+
+// Bluetooth setup
+SoftwareSerial bluetooth(7, 6); // RX, TX
+
+void setup() {
+  // OLED display initialization
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println("Smart Bracelet");
+  display.display();
+  
+  // RFID initialization
+  SPI.begin();
+  mfrc522.PCD_Init();
+
+  // Bluetooth initialization
+  bluetooth.begin(9600);
+}
+
+void loop() {
+  // Check for RFID tag
+  if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
+    // Get card UID
+    String cardUID = "";
+    for (byte i = 0; i < mfrc522.uid.size; i++) {
+      cardUID += String(mfrc522.uid.uidByte[i] < 0x10 ? "0" : "");
+      cardUID += String(mfrc522.uid.uidByte[i], HEX);
+    }
+    
+    // Display UID on OLED screen
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println("Card Detected:");
+    display.setCursor(0, 10);
+    display.println(cardUID);
+    display.display();
+    
+    // Send UID to Bluetooth device
+    bluetooth.println(cardUID);
+  }
+  
+  // Check for incoming Bluetooth data
+  if (bluetooth.available() > 0) {
+    // Read incoming data
+    String data = bluetooth.readStringUntil('\n');
+    
+    // Verify payment amount and process payment
+    if (data.startsWith("PAYMENT:")) {
+      String amount = data.substring(8);
+      
+      // Verify payment amount is valid
+      if (amount.toFloat() > 0) {
+        // Process payment
+        // Code for payment processing goes here
+        // Display success message on OLED screen
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.println("Payment Successful!");
+        display.display();
+      } else {
+        // Display error message on OLED screen
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.println("Invalid Payment Amount");
+        display.display();
+      }
+    }
+  }
+}
